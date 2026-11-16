@@ -209,8 +209,12 @@ public enum ErrorCode {
             HttpStatus.GATEWAY_TIMEOUT,
             "SERVER_006",
             "외부 서비스 응답 시간이 초과되었습니다."
+    ),
+    EXTERNAL_API_CONNECTION_FAILED(
+            HttpStatus.BAD_GATEWAY,
+            "SERVER_007",
+            "외부 서비스에 연결할 수 없습니다."
     );
-
     // ERROR CODE FIELD
 
     private final HttpStatus status;
