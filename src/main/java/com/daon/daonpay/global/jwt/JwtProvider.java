@@ -1,4 +1,4 @@
-package global.jwt;
+package com.daon.daonpay.global.jwt;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;

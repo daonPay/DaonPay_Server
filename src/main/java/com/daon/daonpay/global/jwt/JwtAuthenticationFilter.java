@@ -1,7 +1,7 @@
-package global.jwt;
+package com.daon.daonpay.global.jwt;
 
-import global.exception.CustomException;
-import global.exception.ErrorCode;
+import com.daon.daonpay.global.exception.CustomException;
+import com.daon.daonpay.global.exception.ErrorCode;
 
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;

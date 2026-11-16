@@ -1,7 +1,7 @@
 
-package global.exception;
+package com.daon.daonpay.global.exception;
 
-import global.util.ErrorResponseWriter;
+import com.daon.daonpay.global.util.ErrorResponseWriter;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

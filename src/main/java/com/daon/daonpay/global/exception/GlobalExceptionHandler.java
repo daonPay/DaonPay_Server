@@ -1,4 +1,4 @@
-package global.exception;
+package com.daon.daonpay.global.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
@@ -161,6 +161,13 @@ public class GlobalExceptionHandler {
             HandlerMethodValidationException e,
             HttpServletRequest request
     ) {
+        if (e.isForReturnValue()) {
+            // 기존 500 에러코드(INTERNAL_SERVER_ERROR에 해당하는 것)로 응답
+
+            log.error("컨트롤러 반환값 검증 실패 (서버 오류)", e);
+        }
+            // 아래는 INVALID_INPUT_VALUE(400) 처리
+
         List<ErrorResponse.FieldError> errors = e.getParameterValidationResults()
                 .stream()
                 .flatMap(result -> result.getResolvableErrors()
@@ -486,13 +493,28 @@ public class GlobalExceptionHandler {
      */
 
     @ExceptionHandler(ResourceAccessException.class)
-    public ResponseEntity<ErrorResponse> handleExternalApiTimeout(
+    public ResponseEntity<ErrorResponse> handleExternalApiAccess(
             ResourceAccessException e,
             HttpServletRequest request
     ) {
-        log.error("외부 서비스 연결 오류", e);
+        if (isTimeout(e)) {
+            log.error("외부 서비스 응답 시간 초과", e);
+            return createResponse(ErrorCode.EXTERNAL_API_TIMEOUT, request);
+        }
 
-        return createResponse(ErrorCode.EXTERNAL_API_TIMEOUT, request);
+        log.error("외부 서비스 연결 실패", e);
+        return createResponse(ErrorCode.EXTERNAL_API_CONNECTION_FAILED, request);
+    }
+
+    private boolean isTimeout(Throwable t) {
+        for (int depth = 0; t != null && depth < 10; depth++, t = t.getCause()) {
+            if (t instanceof java.net.SocketTimeoutException
+                    || t instanceof java.net.http.HttpTimeoutException
+                    || t instanceof java.io.InterruptedIOException) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

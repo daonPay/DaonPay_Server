@@ -1,4 +1,4 @@
-package global.exception;
+package com.daon.daonpay.global.exception;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Builder;

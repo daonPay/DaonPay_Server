@@ -1,16 +1,17 @@
-package global.config;
+package com.daon.daonpay.global.config;
 
-import global.exception.CustomAccessDeniedHandler;
-import global.exception.CustomAuthenticationEntryPoint;
-import global.exception.JwtExceptionFilter;
-import global.jwt.JwtAuthenticationFilter;
-import global.jwt.JwtProvider;
-import global.util.ErrorResponseWriter;
+import com.daon.daonpay.global.exception.CustomAccessDeniedHandler;
+import com.daon.daonpay.global.exception.CustomAuthenticationEntryPoint;
+import com.daon.daonpay.global.exception.JwtExceptionFilter;
+import com.daon.daonpay.global.jwt.JwtAuthenticationFilter;
+import com.daon.daonpay.global.jwt.JwtProvider;
+import com.daon.daonpay.global.util.ErrorResponseWriter;
 
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -39,7 +40,7 @@ public class SecurityConfig {
 
     /**
      * Spring Security 필터 체인 설정
-     *
+
      * @param http HTTP 보안 설정 객체
      * @return 구성된 SecurityFilterChain
      * @throws Exception 보안 설정 중 발생할 수 있는 예외
@@ -59,7 +60,7 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()   // 본인 경로로 수정
+                        .requestMatchers(HttpMethod.POST, "/api/users/login", "/api/users/signup").permitAll()   // 본인 경로로 수정
                         .anyRequest().authenticated()
                 )
 

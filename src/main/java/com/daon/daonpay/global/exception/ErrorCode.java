@@ -1,5 +1,5 @@
 
-package global.exception;
+package com.daon.daonpay.global.exception;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
