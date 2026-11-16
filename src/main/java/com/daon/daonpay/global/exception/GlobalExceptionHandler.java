@@ -182,6 +182,23 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 요청 파라미터의 자료형이 메서드에서 요구하는 타입과 일치하지 않을 때 처리
+     * 예: 숫자를 요구하는 파라미터에 문자열이 전달된 경우
+
+     * @param e 파라미터 타입 불일치 예외
+     * @param request HTTP 요청 정보
+     * @return 타입 오류 에러 응답
+     */
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatchException(
+            MethodArgumentTypeMismatchException e,
+            HttpServletRequest request
+    ) {
+        return createResponse(ErrorCode.INVALID_TYPE_VALUE, request);
+    }
+
+    /**
      * 필수 요청 파라미터가 전달되지 않았을 때 처리
 
      * @param e 필수 요청 파라미터 누락 예외
@@ -492,8 +509,7 @@ public class GlobalExceptionHandler {
     private boolean isTimeout(Throwable t) {
         for (int depth = 0; t != null && depth < 10; depth++, t = t.getCause()) {
             if (t instanceof java.net.SocketTimeoutException
-                    || t instanceof java.net.http.HttpTimeoutException
-                    || t instanceof java.io.InterruptedIOException) {
+                    || t instanceof java.net.http.HttpTimeoutException) {
                 return true;
             }
         }
