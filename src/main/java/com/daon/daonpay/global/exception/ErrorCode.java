@@ -214,7 +214,31 @@ public enum ErrorCode {
             HttpStatus.BAD_GATEWAY,
             "SERVER_007",
             "외부 서비스에 연결할 수 없습니다."
+    ),
+
+    // 결제
+
+    PAYMENT_RESULT_UNKNOWN(
+            HttpStatus.GATEWAY_TIMEOUT,
+            "PAYMENT_001",
+            "결제 결과를 확인하고 있습니다. 거래 내역을 확인한 뒤 다시 시도해 주세요."
+    ),
+    PAYMENT_IN_PROGRESS(
+            HttpStatus.CONFLICT,
+            "PAYMENT_002",
+            "이미 처리 중인 결제입니다."
+    ),
+    IDEMPOTENCY_KEY_REQUIRED(
+            HttpStatus.BAD_REQUEST,
+            "PAYMENT_003",
+            "결제 요청 식별키가 필요합니다."
+    ),
+    IDEMPOTENCY_KEY_REUSED(
+            HttpStatus.UNPROCESSABLE_ENTITY,
+            "PAYMENT_004",
+            "같은 식별키로 다른 내용의 결제를 요청할 수 없습니다."
     );
+
     // ERROR CODE FIELD
 
     private final HttpStatus status;
