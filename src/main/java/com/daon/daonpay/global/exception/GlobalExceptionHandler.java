@@ -161,13 +161,13 @@ public class GlobalExceptionHandler {
             HandlerMethodValidationException e,
             HttpServletRequest request
     ) {
+        // 컨트롤러 반환값 검증 실패 = 서버가 잘못된 응답을 만든 것이므로 500
         if (e.isForReturnValue()) {
-            // 기존 500 에러코드(INTERNAL_SERVER_ERROR에 해당하는 것)로 응답
-
             log.error("컨트롤러 반환값 검증 실패 (서버 오류)", e);
+            return createResponse(ErrorCode.INTERNAL_SERVER_ERROR, request);
         }
-            // 아래는 INVALID_INPUT_VALUE(400) 처리
 
+        // 사용자 입력 검증 실패는 400
         List<ErrorResponse.FieldError> errors = e.getParameterValidationResults()
                 .stream()
                 .flatMap(result -> result.getResolvableErrors()
@@ -179,23 +179,6 @@ public class GlobalExceptionHandler {
                 .toList();
 
         return createResponse(ErrorCode.INVALID_INPUT_VALUE, request, errors);
-    }
-
-    /**
-     * 요청 파라미터의 자료형이 메서드에서 요구하는 타입과 일치하지 않을 때 처리
-     * 예: 숫자를 요구하는 파라미터에 문자열이 전달된 경우
-
-     * @param e 파라미터 타입 불일치 예외
-     * @param request HTTP 요청 정보
-     * @return 타입 오류 에러 응답
-     */
-
-    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<ErrorResponse> handleTypeMismatchException(
-            MethodArgumentTypeMismatchException e,
-            HttpServletRequest request
-    ) {
-        return createResponse(ErrorCode.INVALID_TYPE_VALUE, request);
     }
 
     /**
