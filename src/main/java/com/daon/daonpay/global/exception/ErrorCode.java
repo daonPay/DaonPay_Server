@@ -237,6 +237,39 @@ public enum ErrorCode {
             HttpStatus.UNPROCESSABLE_ENTITY,
             "PAYMENT_004",
             "같은 식별키로 다른 내용의 결제를 요청할 수 없습니다."
+    ),
+
+    // place 예외 처리
+    // 404 NOT FOUND - 사용처를 찾을 수 없음
+
+    PLACE_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "PLACE_001",
+            "사용처를 찾을 수 없습니다."
+    ),
+
+// 409 CONFLICT - 운영 중단 등으로 이용할 수 없는 사용처
+
+    PLACE_UNAVAILABLE(
+            HttpStatus.CONFLICT,
+            "PLACE_002",
+            "현재 이용할 수 없는 사용처입니다."
+    ),
+
+// 404 NOT FOUND - 상품을 찾을 수 없음
+
+    PRODUCT_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "PRODUCT_001",
+            "상품을 찾을 수 없습니다."
+    ),
+
+// 409 CONFLICT - 같은 사용처에 이미 등록된 상품
+
+    PRODUCT_ALREADY_EXISTS(
+            HttpStatus.CONFLICT,
+            "PRODUCT_002",
+            "이미 등록된 상품입니다."
     );
 
     // ERROR CODE FIELD
