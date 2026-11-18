@@ -12,23 +12,24 @@ import org.springframework.data.repository.query.Param;
 public interface PlaceRepository extends JpaRepository<Place, Long> {
 
     /**
-     * 사용처 목록 검색. 조건이 null이면 해당 조건은 무시
+     * 사용처 목록 검색. 조건이 null이면 해당 조건은 무시한다.
 
-     * @param region      시/도 또는 시/군/구 중 하나와 일치
-     * @param keyword     사용처 이름 LIKE 패턴 (예: "%마트%")
-     * @param productName 해당 상품을 보유한 사용처만 조회하는 LIKE 패턴
+     * @param region      시/도 또는 시/군/구 중 하나와 일치 (앞뒤 공백 제거된 값)
+     * @param keyword     사용처 이름 LIKE 패턴. %, _ 는 서비스에서 '!'로 이스케이프되어 전달된다.
+     * @param productName 해당 상품을 보유한 사용처만 조회하는 LIKE 패턴 (이스케이프 규칙 동일)
      */
 
     @Query("""
         select p from Place p
         where (:category is null or p.category = :category)
           and (:region is null or p.sido = :region or p.sigungu = :region)
-          and (:keyword is null or p.name like :keyword)
+          and (:keyword is null or p.name like :keyword escape '!')
           and (:status is null or p.status = :status)
           and (:productName is null or exists (
                 select 1 from PlaceProduct pp
-                where pp.place = p and pp.name like :productName))
+                where pp.place = p and pp.name like :productName escape '!'))
         """)
+
     Page<Place> search(@Param("category") PlaceCategory category,
                        @Param("region") String region,
                        @Param("keyword") String keyword,
