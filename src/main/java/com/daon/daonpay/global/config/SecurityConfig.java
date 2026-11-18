@@ -61,6 +61,9 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/users/login", "/api/users/signup").permitAll()   // 본인 경로로 수정
+                        .requestMatchers(HttpMethod.POST, "/api/places", "/api/places/*/products").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/places/*/status").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/places/*/products/*").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
 

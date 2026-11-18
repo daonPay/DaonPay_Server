@@ -11,9 +11,11 @@ import jakarta.persistence.*;
 @Table(
         name = "place_products",
         uniqueConstraints = @UniqueConstraint(
-                name = "uk_place_products_place_name", columnNames = {"place_id", "name"})
+                name = PlaceProduct.UNIQUE_PLACE_NAME, columnNames = {"place_id", "name"})
 )
 public class PlaceProduct {
+
+    public static final String UNIQUE_PLACE_NAME = "uk_place_products_place_name";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

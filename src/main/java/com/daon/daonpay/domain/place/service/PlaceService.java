@@ -7,10 +7,13 @@ import com.daon.daonpay.domain.place.dto.response.PlacePageResponse;
 import com.daon.daonpay.domain.place.dto.response.PlaceResponse;
 import com.daon.daonpay.domain.place.entity.Place;
 import com.daon.daonpay.domain.place.entity.PlaceCategory;
+import com.daon.daonpay.domain.place.entity.PlaceProduct;
 import com.daon.daonpay.domain.place.entity.PlaceStatus;
 import com.daon.daonpay.domain.place.repository.PlaceRepository;
 import com.daon.daonpay.global.exception.CustomException;
 import com.daon.daonpay.global.exception.ErrorCode;
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -45,8 +48,8 @@ public class PlaceService {
     // 사용처 등록
     @Transactional
     public PlaceResponse create(PlaceCreateRequest req) {
-        Place place = new Place(req.placeName(), req.category(), req.sido(),
-                req.sigungu(), req.address(), req.productNames());
+        Place place = new Place(req.placeName(), req.category(), req.sido().trim(),
+                req.sigungu().trim(), req.address(), req.productNames());
         return PlaceResponse.from(placeRepository.save(place));
     }
 
@@ -68,7 +71,20 @@ public class PlaceService {
             throw new CustomException(ErrorCode.PRODUCT_ALREADY_EXISTS);
         }
         place.addProduct(productName);
-        placeRepository.flush(); // 새 상품의 id를 응답에 담기 위해 먼저 반영
+        try {
+            placeRepository.flush(); // 새 상품의 ID를 응답에 담고 제약조건 위반을 확인한다.
+        } catch (DataIntegrityViolationException e) {
+            for (Throwable cause = e.getCause(); cause != null; cause = cause.getCause()) {
+                if (cause instanceof ConstraintViolationException violation) {
+                    String constraint = violation.getConstraintName();
+                    if (PlaceProduct.UNIQUE_PLACE_NAME.equals(constraint)
+                            || (constraint != null && constraint.endsWith("." + PlaceProduct.UNIQUE_PLACE_NAME))) {
+                        throw new CustomException(ErrorCode.PRODUCT_ALREADY_EXISTS);
+                    }
+                }
+            }
+            throw e;
+        }
         return PlaceResponse.from(place);
     }
 
@@ -101,11 +117,16 @@ public class PlaceService {
     }
 
     private String blankToNull(String value) {
-        return (value == null || value.isBlank()) ? null : value;
+        return (value == null || value.isBlank()) ? null : value.trim();
     }
 
     // 검색어를 LIKE 패턴("%검색어%")으로 변환한다. 비어 있으면 null
     private String toLikePattern(String value) {
-        return blankToNull(value) == null ? null : "%" + value.trim() + "%";
+        String keyword = blankToNull(value);
+        if (keyword == null) {
+            return null;
+        }
+        String escaped = keyword.replace("!", "!!").replace("%", "!%").replace("_", "!_");
+        return "%" + escaped + "%";
     }
 }

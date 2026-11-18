@@ -22,12 +22,12 @@ public interface PlaceRepository extends JpaRepository<Place, Long> {
     @Query("""
         select p from Place p
         where (:category is null or p.category = :category)
-          and (:region is null or p.sido = :region or p.sigungu = :region)
-          and (:keyword is null or p.name like :keyword)
+          and (:region is null or trim(p.sido) = :region or trim(p.sigungu) = :region)
+          and (:keyword is null or p.name like :keyword escape '!')
           and (:status is null or p.status = :status)
           and (:productName is null or exists (
                 select 1 from PlaceProduct pp
-                where pp.place = p and pp.name like :productName))
+                where pp.place = p and pp.name like :productName escape '!'))
         """)
     Page<Place> search(@Param("category") PlaceCategory category,
                        @Param("region") String region,
