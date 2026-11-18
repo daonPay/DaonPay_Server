@@ -22,8 +22,8 @@ tags:
     description: 다온페이 지갑 및 거래
   - name: Payment
     description: 결제
-  - name: Merchant
-    description: 가맹점
+  - name: Place
+    description: 대피소/사용처 (대피소, 가맹점, 약국 등)
   - name: Notification
     description: 알림
 
@@ -351,7 +351,7 @@ paths:
     post:
       tags: [Payment]
       summary: 결제 요청
-      description: 결제 가능 잔액, 지원금 사용 조건, 가맹점 상태를 서버에서 검증한 뒤 처리해야 합니다.
+      description: 결제 가능 잔액, 지원금 사용 조건, 사용처 상태(운영 중 여부)를 서버에서 검증한 뒤 처리해야 합니다.
       requestBody:
         required: true
         content:
@@ -367,6 +367,8 @@ paths:
                 $ref: '#/components/schemas/PaymentResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
 
@@ -408,42 +410,157 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /merchants:
+  /places:
     get:
-      tags: [Merchant]
-      summary: 가맹점 목록 조회
+      tags: [Place]
+      summary: 사용처 목록 조회
+      description: 대피소, 가맹점, 약국 등 사용처 목록을 조회합니다. 조건을 지정하지 않으면 전체를 조회합니다.
       parameters:
         - in: query
-          name: keyword
+          name: category
           schema:
-            type: string
+            $ref: '#/components/schemas/PlaceCategory'
+          description: 사용처 카테고리 필터
         - in: query
           name: region
           schema:
             type: string
+          description: 시/도 또는 시/군/구와 일치하는 사용처만 조회
+        - in: query
+          name: keyword
+          schema:
+            type: string
+          description: 사용처 이름 검색어
+        - in: query
+          name: productName
+          schema:
+            type: string
+          description: 해당 상품을 보유한 사용처만 조회
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/PlaceStatus'
+          description: 운영 상태 필터
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/Size'
       responses:
         '200':
-          description: 가맹점 목록 조회 성공
+          description: 사용처 목록 조회 성공
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MerchantPage'
+                $ref: '#/components/schemas/PlacePage'
+    post:
+      tags: [Place]
+      summary: 사용처 등록 (관리자)
+      description: 관리자 권한이 필요합니다. 등록 직후 운영 상태는 OPEN입니다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaceCreateRequest'
+      responses:
+        '201':
+          description: 사용처 등록 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Place'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
-  /merchants/{merchantId}:
+  /places/{placeId}:
     get:
-      tags: [Merchant]
-      summary: 가맹점 상세 조회
+      tags: [Place]
+      summary: 사용처 상세 조회
       parameters:
-        - $ref: '#/components/parameters/MerchantId'
+        - $ref: '#/components/parameters/PlaceId'
       responses:
         '200':
-          description: 가맹점 상세 조회 성공
+          description: 사용처 상세 조회 성공
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Merchant'
+                $ref: '#/components/schemas/Place'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /places/{placeId}/status:
+    patch:
+      tags: [Place]
+      summary: 사용처 운영 상태 변경 (관리자)
+      description: 관리자 권한이 필요합니다. OPEN일 때만 결제에 사용할 수 있습니다.
+      parameters:
+        - $ref: '#/components/parameters/PlaceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaceStatusUpdateRequest'
+      responses:
+        '200':
+          description: 운영 상태 변경 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Place'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /places/{placeId}/products:
+    post:
+      tags: [Place]
+      summary: 사용처 상품 추가 (관리자)
+      description: 관리자 권한이 필요합니다. 같은 사용처에는 같은 이름의 상품을 중복해서 등록할 수 없습니다.
+      parameters:
+        - $ref: '#/components/parameters/PlaceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaceProductCreateRequest'
+      responses:
+        '201':
+          description: 상품 추가 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Place'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /places/{placeId}/products/{productId}:
+    delete:
+      tags: [Place]
+      summary: 사용처 상품 삭제 (관리자)
+      description: 관리자 권한이 필요합니다.
+      parameters:
+        - $ref: '#/components/parameters/PlaceId'
+        - $ref: '#/components/parameters/ProductId'
+      responses:
+        '200':
+          description: 상품 삭제 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Place'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -558,9 +675,16 @@ components:
       schema:
         type: integer
         format: int64
-    MerchantId:
+    PlaceId:
       in: path
-      name: merchantId
+      name: placeId
+      required: true
+      schema:
+        type: integer
+        format: int64
+    ProductId:
+      in: path
+      name: productId
       required: true
       schema:
         type: integer
@@ -953,11 +1077,12 @@ components:
 
     PaymentCreateRequest:
       type: object
-      required: [merchantId, amount, paymentMethod]
+      required: [placeId, amount, paymentMethod]
       properties:
-        merchantId:
+        placeId:
           type: integer
           format: int64
+          description: 결제할 사용처 ID
         amount:
           type: number
           format: double
@@ -973,11 +1098,12 @@ components:
         paymentId:
           type: integer
           format: int64
-        merchantId:
+        placeId:
           type: integer
           format: int64
-        merchantName:
+        placeName:
           type: string
+          example: 행복마트
         amount:
           type: number
           format: double
@@ -1005,24 +1131,56 @@ components:
               items:
                 $ref: '#/components/schemas/PaymentListItem'
 
-    Merchant:
+    PlaceCategory:
+      type: string
+      enum: [SHELTER, MERCHANT, PHARMACY, ETC]
+      description: 대피소(SHELTER), 가맹점(MERCHANT), 약국(PHARMACY), 기타(ETC)
+
+    PlaceStatus:
+      type: string
+      enum: [OPEN, SUSPENDED, CLOSED]
+      description: 운영 중(OPEN), 일시 중단(SUSPENDED), 운영 종료(CLOSED)
+
+    PlaceProduct:
       type: object
       properties:
-        merchantId:
+        productId:
           type: integer
           format: int64
-        merchantName:
+        productName:
+          type: string
+          example: 생수
+
+    Place:
+      type: object
+      properties:
+        placeId:
+          type: integer
+          format: int64
+        placeName:
           type: string
           example: 행복마트
-        businessType:
+        category:
+          $ref: '#/components/schemas/PlaceCategory'
+        sido:
           type: string
-          example: MART
+          example: 경상북도
+        sigungu:
+          type: string
+          example: 경산시
         address:
           type: string
+        status:
+          $ref: '#/components/schemas/PlaceStatus'
         isActive:
           type: boolean
+          description: 현재 이용 가능 여부 (status가 OPEN이면 true)
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlaceProduct'
 
-    MerchantPage:
+    PlacePage:
       allOf:
         - $ref: '#/components/schemas/PageMetadata'
         - type: object
@@ -1030,7 +1188,45 @@ components:
             content:
               type: array
               items:
-                $ref: '#/components/schemas/Merchant'
+                $ref: '#/components/schemas/Place'
+
+    PlaceCreateRequest:
+      type: object
+      required: [placeName, category, sido, sigungu]
+      properties:
+        placeName:
+          type: string
+          example: 행복마트
+        category:
+          $ref: '#/components/schemas/PlaceCategory'
+        sido:
+          type: string
+          example: 경상북도
+        sigungu:
+          type: string
+          example: 경산시
+        address:
+          type: string
+        productNames:
+          type: array
+          description: 초기 보유 상품명 목록 (선택)
+          items:
+            type: string
+
+    PlaceStatusUpdateRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: '#/components/schemas/PlaceStatus'
+
+    PlaceProductCreateRequest:
+      type: object
+      required: [productName]
+      properties:
+        productName:
+          type: string
+          example: 생수
 
     Notification:
       type: object
