@@ -10,7 +10,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RestController;import com.daon.daonpay.domain.user.dto.response.UserResponse;
+import org.springframework.http.HttpStatus;
+
 
 @RestController
 
@@ -25,18 +27,15 @@ public class UserController {
 
     // 회원가입 API
     // POST /api/users/signup
+    // 성공 시 201(Created) 과 함께 UserResponse 본문을 반환
     @PostMapping("/signup")
-    public ResponseEntity<Void> signup(
+    public ResponseEntity<UserResponse> signup(
 
             // 요청 본문(JSON)을 SignupRequest 객체로 변환하고 유효성 검사 수행
             @Valid @RequestBody SignupRequest request) {
 
-        // 회원가입 비즈니스 로직 실행
-        userService.signup(request);
-
-        // 회원가입 성공 시 HTTP 상태 코드 201(Created) 반환
-        // 응답 본문은 비워서 전달
-        return ResponseEntity.status(201).build();
+        // 회원가입 비즈니스 로직 실행 후 가입한 사용자 정보를 응답 본문에 담아 반환
+        return ResponseEntity.status(HttpStatus.CREATED).body(userService.signup(request));
     }
 
     // 로그인 API

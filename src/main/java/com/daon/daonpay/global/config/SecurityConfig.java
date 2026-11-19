@@ -5,6 +5,8 @@ import com.daon.daonpay.global.exception.CustomAccessDeniedHandler;
 import com.daon.daonpay.global.exception.CustomAuthenticationEntryPoint;
 import com.daon.daonpay.global.exception.JwtExceptionFilter;
 import com.daon.daonpay.global.jwt.JwtAuthenticationFilter;
+import com.daon.daonpay.global.jwt.JwtProvider;
+import com.daon.daonpay.global.util.ErrorResponseWriter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -35,11 +37,16 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    // JWT를 검증하고 인증 정보를 SecurityContext에 등록하는 필터
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    // 사용처(place) 관리 API 경로
+    // 등록(POST), 상태 변경(PATCH), 상품 추가(POST) / 삭제(DELETE) 는 관리자 전용
+    // 조회(GET)는 이 규칙에 포함하지 않고 기존 정책(로그인 필요)을 그대로 유지
+    private static final String[] PLACE_PATTERNS = {"/api/places", "/api/places/**"};
 
-    // JWT 인증 과정에서 발생한 예외를 공통 에러 응답으로 변환하는 필터
-    private final JwtExceptionFilter jwtExceptionFilter;
+    // JWT 필터 생성에 필요한 의존성
+    // 두 JWT 필터는 Bean 으로 등록하지 않고 filterChain 안에서 직접 생성한다.
+    // (Bean 이면 서블릿 컨테이너에 자동 등록되어 Security 체인 밖에서도 실행됨)
+    private final JwtProvider jwtProvider;
+    private final ErrorResponseWriter errorResponseWriter;
 
     // 인증되지 않은 사용자가 보호된 리소스에 접근할 때 실행되는 핸들러 (401)
     private final CustomAuthenticationEntryPoint authenticationEntryPoint;
@@ -57,6 +64,14 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+
+    // JWT를 검증하고 인증 정보를 SecurityContext에 등록하는 필터
+    JwtAuthenticationFilter jwtAuthenticationFilter = new JwtAuthenticationFilter(jwtProvider);
+
+    // JWT 인증 과정에서 발생한 예외를 공통 에러 응답으로 변환하는 필터
+    JwtExceptionFilter jwtExceptionFilter = new JwtExceptionFilter(errorResponseWriter);
+
+    String admin = Role.ADMIN.name();
 
         http
                 // REST API 서버이므로 CSRF 보호 기능 비활성화
@@ -93,6 +108,20 @@ public class SecurityConfig {
                         // 관리자 전용 API
                         // ADMIN 역할을 가진 사용자만 접근 가능
                         .requestMatchers("/api/admin/**")
+                        .hasRole(Role.ADMIN.name())
+
+                        // 사용처 관리 API
+                        // 등록, 수정, 상태 변경, 상품 추가 및 삭제는 ADMIN만 가능
+                        .requestMatchers(HttpMethod.POST, PLACE_PATTERNS)
+                        .hasRole(Role.ADMIN.name())
+
+                        .requestMatchers(HttpMethod.PUT, PLACE_PATTERNS)
+                        .hasRole(Role.ADMIN.name())
+
+                        .requestMatchers(HttpMethod.PATCH, PLACE_PATTERNS)
+                        .hasRole(Role.ADMIN.name())
+
+                        .requestMatchers(HttpMethod.DELETE, PLACE_PATTERNS)
                         .hasRole(Role.ADMIN.name())
 
                         // 위에서 별도로 허용한 경로를 제외한 모든 API는 인증 필요
@@ -132,9 +161,10 @@ public class SecurityConfig {
 
     /**
      * 비밀번호 암호화 및 검증에 사용할 PasswordEncoder 등록
-     *
+
      * @return BCrypt 방식의 비밀번호 암호화 객체
      */
+
     @Bean
     public PasswordEncoder passwordEncoder() {
 
