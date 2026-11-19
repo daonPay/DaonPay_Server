@@ -270,7 +270,24 @@ public enum ErrorCode {
             HttpStatus.CONFLICT,
             "PRODUCT_002",
             "이미 등록된 상품입니다."
-    );
+    ),
+
+    // user
+
+    INVALID_ROLE(
+            HttpStatus.BAD_REQUEST,
+            "INVALID_ROLE",
+            "선택할 수 없는 역할입니다."),
+
+    DUPLICATE_EMAIL(
+            HttpStatus.CONFLICT,
+            "DUPLICATE_EMAIL",
+            "이미 사용 중인 이메일입니다."),
+
+    LOGIN_FAILED(
+            HttpStatus.UNAUTHORIZED,
+            "LOGIN_FAILED",
+            "이메일 또는 비밀번호가 올바르지 않습니다.");
 
     // ERROR CODE FIELD
 
