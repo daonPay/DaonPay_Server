@@ -18,6 +18,7 @@ import org.springframework.http.HttpStatus;
 
 // 모든 API 요청의 공통 URL 경로 설정
 @RequestMapping("/api/users")
+
 // final 필드를 대상으로 생성자를 자동 생성하여 의존성 주입
 @RequiredArgsConstructor
 public class UserController {
