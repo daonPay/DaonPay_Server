@@ -1,6 +1,8 @@
 
 package com.daon.daonpay.global.jwt;
 
+import com.daon.daonpay.global.jwt.JwtProvider;
+import com.daon.daonpay.global.util.ErrorResponseWriter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -12,7 +14,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
@@ -21,9 +22,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * 인증된 사용자 정보를 Spring Security의 SecurityContext에 등록
  */
 
-@Component
+// 주의: @Component 로 등록하지 않는다.
+// Bean 으로 등록하면 서블릿 컨테이너에도 자동 등록되어 Security 필터 체인 밖에서 한 번 더 실행
+// SecurityConfig.filterChain 안에서 직접 생성하여 Security 체인에서만 동작하게 함
 
-// final 필드를 대상으로 생성자를 자동 생성하여 의존성 주입
+// final 필드를 대상으로 생성자를 자동 생성 (SecurityConfig 에서 new JwtAuthenticationFilter(jwtProvider) 로 생성)
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -32,6 +35,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     // JWT 검증 및 인증된 사용자 정보 추출을 담당하는 클래스
     private final JwtProvider jwtProvider;
+
+
 
     /**
      * HTTP 요청마다 JWT 인증 처리 수행
