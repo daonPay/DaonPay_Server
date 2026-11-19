@@ -20,8 +20,7 @@ import jakarta.persistence.UniqueConstraint;
         name = "users",
 
         // 이메일 중복을 막는 유니크 제약. 이름을 고정해 두어 동시 가입으로 인한 중복만 DUPLICATE_EMAIL 로 변환한다.
-        uniqueConstraints = @UniqueConstraint(
-                name = User.EMAIL_UNIQUE_CONSTRAINT, columnNames = "email")
+        uniqueConstraints = @UniqueConstraint(name = "uk_users_email", columnNames = "email")
 )
 @Getter
 
