@@ -7,8 +7,8 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,23 +29,24 @@ public class JwtProvider {
     private final SecretKey key;
 
     // 액세스 토큰의 유효 기간 (밀리초)
-    private final long accessTokenValidityMs;
+    private final long accessExpirationMs;
 
     /**
      * JWT 설정값을 주입받아 초기화
 
-     * @param secret JWT 서명에 사용할 Base64 인코딩 비밀키
-     * @param accessTokenValidityMs 액세스 토큰 만료 시간 (밀리초)
+     * @param secret JWT 서명에 사용할 비밀키 문자열 (기존 설정과 동일하게 UTF-8 문자열로 사용, Base64 해석 안 함)
+     * @param accessExpirationMs 액세스 토큰 만료 시간 (밀리초), 기존 설정 키 jwt.access-expiration-ms 유지
      */
 
     public JwtProvider(
             @Value("${jwt.secret}") String secret,
-            @Value("${jwt.access-token-validity-ms:3600000}") long accessTokenValidityMs) {
+            @Value("${jwt.access-expiration-ms:3600000}") long accessExpirationMs) {
 
-        // Base64로 인코딩된 비밀키를 디코딩한 후 HMAC 서명에 사용할 SecretKey 생성
-        this.key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));
+        // 기존 설정값을 그대로 쓸 수 있도록 UTF-8 바이트로 HMAC 서명 키 생성
+        // (Base64 로 디코딩하면 기존 설정값으로 초기화에 실패하거나 서명 키가 달라져 기존 토큰이 무효화됨)
+        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
 
-        this.accessTokenValidityMs = accessTokenValidityMs;
+        this.accessExpirationMs = accessExpirationMs;
     }
 
     /**
@@ -73,7 +74,7 @@ public class JwtProvider {
                 .issuedAt(now)
 
                 // 현재 시간에 유효 기간을 더하여 토큰 만료 시간 설정
-                .expiration(new Date(now.getTime() + accessTokenValidityMs))
+                .expiration(new Date(now.getTime() + accessExpirationMs))
 
                 // 비밀키를 사용하여 JWT 서명
                 .signWith(key)
@@ -84,6 +85,7 @@ public class JwtProvider {
 
     /**
      * JWT 검증 후 인증된 사용자 정보 추출
+     * 사용자 ID, 역할이 누락되었거나 변환할 수 없는 값이면 모두 INVALID_TOKEN 으로 처리
 
      * @param token 검증할 JWT 액세스 토큰
      * @return 사용자 ID와 역할 정보가 담긴 AuthUser 객체
@@ -94,20 +96,42 @@ public class JwtProvider {
         // 토큰 검증 후 Payload에 저장된 Claims 추출
         Claims claims = parseClaims(token);
 
+        return new AuthUser(extractUserId(claims), extractRole(claims));
+    }
+
+    // Subject 에 저장된 사용자 ID 를 Long 으로 변환
+    // Subject 가 없거나 숫자가 아니면 INVALID_TOKEN
+    private Long extractUserId(Claims claims) {
+
+        String subject = claims.getSubject();
+
+        if (subject == null || subject.isBlank()) {
+            throw new CustomException(ErrorCode.INVALID_TOKEN);
+        }
+
         try {
+            return Long.valueOf(subject);
+        } catch (NumberFormatException e) {
+            throw new CustomException(ErrorCode.INVALID_TOKEN);
+        }
+    }
 
-            // Subject에 저장된 사용자 ID를 Long 타입으로 변환
-            Long userId = Long.valueOf(claims.getSubject());
+    // role Claim 을 Role Enum 으로 변환
+    // Role.valueOf(null) 은 NullPointerException 을 던지므로 존재 여부와 타입을 먼저 확인한 뒤 변환
+    private Role extractRole(Claims claims) {
 
-            // Claim에 저장된 역할 정보를 Role Enum으로 변환
-            Role role = Role.valueOf(claims.get(ROLE_CLAIM, String.class));
+        Object raw = claims.get(ROLE_CLAIM);
 
-            // 추출한 사용자 ID와 역할 정보로 인증 사용자 객체 생성
-            return new AuthUser(userId, role);
+        // role 클레임이 없거나, 문자열이 아니거나, 비어 있는 경우
+        if (!(raw instanceof String roleName) || roleName.isBlank()) {
+            throw new CustomException(ErrorCode.INVALID_TOKEN);
+        }
 
+        try {
+            return Role.valueOf(roleName);
         } catch (IllegalArgumentException e) {
 
-            // 사용자 ID가 숫자가 아니거나 역할 정보가 유효하지 않은 경우
+            // Role 에 정의되지 않은 값인 경우
             throw new CustomException(ErrorCode.INVALID_TOKEN);
         }
     }
@@ -117,7 +141,7 @@ public class JwtProvider {
 
      * @param token 검증할 JWT 토큰
      * @return 토큰의 Payload에 저장된 Claims 정보
-     *
+
      * @throws CustomException 토큰이 만료되었거나 유효하지 않은 경우
      */
 
@@ -142,7 +166,8 @@ public class JwtProvider {
         } catch (ExpiredJwtException e) {
 
             // 토큰의 유효 기간이 만료된 경우
-            throw new CustomException(ErrorCode.EXPIRED_TOKEN);
+            // 기존 에러 코드(TOKEN_EXPIRED / AUTH_003)를 그대로 사용해 재로그인 처리 중인 클라이언트 동작 유지
+            throw new CustomException(ErrorCode.TOKEN_EXPIRED);
 
         } catch (JwtException | IllegalArgumentException e) {
 
