@@ -12,15 +12,25 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import jakarta.persistence.UniqueConstraint;
 
 // 사용자 정보를 저장하는 JPA 엔티티
 @Entity
-@Table(name = "users")
+@Table(
+        name = "users",
+
+        // 이메일 중복을 막는 유니크 제약. 이름을 고정해 두어 동시 가입으로 인한 중복만 DUPLICATE_EMAIL 로 변환한다.
+        uniqueConstraints = @UniqueConstraint(
+                name = User.EMAIL_UNIQUE_CONSTRAINT, columnNames = "email")
+)
 @Getter
 
 // 기본 생성자 자동 생성 (JPA에서 엔티티 조회 및 생성 시 사용)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User {
+
+    // 이메일 유니크 제약 이름 (UserService 에서 제약 위반 원인을 구분할 때 사용)
+    public static final String EMAIL_UNIQUE_CONSTRAINT = "uk_users_email";
 
     // 사용자 고유 식별자 (Primary Key)
     @Id
@@ -31,7 +41,7 @@ public class User {
 
     // 사용자 이메일
     // 필수 입력값이며 중복을 허용하지 않고 최대 100자까지 저장
-    @Column(nullable = false, unique = true, length = 100)
+    @Column(nullable = false, length = 100)
     private String email;
 
     // 사용자 비밀번호
