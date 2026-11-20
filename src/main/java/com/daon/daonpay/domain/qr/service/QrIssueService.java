@@ -8,7 +8,8 @@ import com.daon.daonpay.domain.user.repository.UserRepository;
 import com.daon.daonpay.global.exception.CustomException;
 import com.daon.daonpay.global.exception.ErrorCode;
 import com.daon.daonpay.global.util.TokenHasher;
-import java.time.LocalDateTime;
+import java.time.Clock;
+import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -20,20 +21,24 @@ public class QrIssueService {
 
     private final QrCodeRepository qrCodeRepository;
     private final UserRepository userRepository;
+    private final Clock clock;
 
     @Value("${daonpay.qr.ttl-seconds:60}")
     private long ttlSeconds;
 
     @Transactional
-    public QrIssueResponse issue(String email) {
-        User user = userRepository.findByEmail(email)
+    public QrIssueResponse issue(Long userId) {
+        // 사용자 행 락으로 같은 사용자의 발급을 직렬화
+        // (락이 없으면 두 요청이 동시에 "활성 QR 없음"을 보고 둘 다 새 QR을 저장할 수 있다)
+        User user = userRepository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         qrCodeRepository.revokeIssuedByUserId(user.getId());
 
+        Instant now = Instant.now(clock);
+        Instant expiresAt = now.plusSeconds(ttlSeconds);
         String token = TokenHasher.randomToken(32);
-        LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(ttlSeconds);
-        qrCodeRepository.save(new QrCode(user.getId(), TokenHasher.sha256Hex(token), expiresAt));
+        qrCodeRepository.save(new QrCode(user.getId(), TokenHasher.sha256Hex(token), expiresAt, now));
 
         return new QrIssueResponse(token, expiresAt, ttlSeconds);
     }

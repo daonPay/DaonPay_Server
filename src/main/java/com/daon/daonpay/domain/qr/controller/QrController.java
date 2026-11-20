@@ -5,10 +5,11 @@ import com.daon.daonpay.domain.qr.dto.response.QrIssueResponse;
 import com.daon.daonpay.domain.qr.dto.response.QrVerifyResponse;
 import com.daon.daonpay.domain.qr.service.QrIssueService;
 import com.daon.daonpay.domain.qr.service.QrVerifyService;
+import com.daon.daonpay.global.jwt.AuthUser;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -32,8 +33,8 @@ public class QrController {
     // 로그인한 사용자: 결제용 QR 발급 (앱 카드 화면의 큰 QR)
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public QrIssueResponse issue(Authentication authentication) {
-        return qrIssueService.issue(authentication.getName());
+    public QrIssueResponse issue(@AuthenticationPrincipal AuthUser authUser) {
+        return qrIssueService.issue(authUser.userId());
     }
 
     // 단말기: QR 검증 → 결제 가능/불가 응답 (공개 경로, 단말기 헤더로 인증)

@@ -19,7 +19,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     // 존재하면 true, 존재하지 않으면 false 반환
     boolean existsByEmail(String email);
 
+    // QR 발급 직렬화용: 사용자 행에 쓰기 락을 잡고 조회 (JWT 의 userId 기준)
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select u from User u where u.email = :email")
-    Optional<User> findByEmailForUpdate(@Param("email") String email);
+    @Query("select u from User u where u.id = :id")
+    Optional<User> findByIdForUpdate(@Param("id") Long id);
 }

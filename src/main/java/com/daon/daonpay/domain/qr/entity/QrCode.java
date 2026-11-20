@@ -10,7 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -30,7 +30,7 @@ public class QrCode {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    // QR 토큰 원문은 저장하지 않고 SHA-256 해시만 저장
+    /** QR 토큰 원문은 저장하지 않고 SHA-256 해시만 저장한다. */
     @Column(name = "token_hash", nullable = false, length = 64)
     private String tokenHash;
 
@@ -39,22 +39,33 @@ public class QrCode {
     private QrStatus status;
 
     @Column(name = "expires_at", nullable = false)
-    private LocalDateTime expiresAt;
+    private Instant expiresAt;
 
     @Column(name = "used_at")
-    private LocalDateTime usedAt;
+    private Instant usedAt;
 
     @Column(name = "used_terminal_id")
     private Long usedTerminalId;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
-    public QrCode(Long userId, String tokenHash, LocalDateTime expiresAt) {
+    public QrCode(Long userId, String tokenHash, Instant expiresAt, Instant createdAt) {
         this.userId = userId;
         this.tokenHash = tokenHash;
         this.expiresAt = expiresAt;
+        this.createdAt = createdAt;
         this.status = QrStatus.ISSUED;
-        this.createdAt = LocalDateTime.now();
+    }
+
+    public boolean isExpired(Instant now) {
+        return !expiresAt.isAfter(now);
+    }
+
+    // 행 락을 잡은 상태에서만 호출
+    public void use(Instant now, Long terminalId) {
+        this.status = QrStatus.USED;
+        this.usedAt = now;
+        this.usedTerminalId = terminalId;
     }
 }

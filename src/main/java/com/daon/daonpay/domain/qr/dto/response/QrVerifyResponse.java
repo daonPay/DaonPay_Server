@@ -2,7 +2,7 @@ package com.daon.daonpay.domain.qr.dto.response;
 
 import com.daon.daonpay.domain.qr.entity.QrVerification;
 import com.daon.daonpay.domain.qr.entity.VerifyResult;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public record QrVerifyResponse(
         String requestId,
@@ -10,7 +10,7 @@ public record QrVerifyResponse(
         boolean approved,
         VerifyResult result,
         String message,
-        LocalDateTime verifiedAt
+        Instant verifiedAt
 ) {
     public static QrVerifyResponse from(QrVerification v) {
         VerifyResult result = v.getResult();
