@@ -308,7 +308,11 @@ public enum ErrorCode {
     VERIFICATION_NOT_FOUND(
             HttpStatus.NOT_FOUND,
             "VERIFICATION_NOT_FOUND",
-            "검증 내역을 찾을 수 없습니다.");
+            "검증 내역을 찾을 수 없습니다."),
+
+    IDEMPOTENCY_KEY_CONFLICT(HttpStatus.CONFLICT,
+            "IDEMPOTENCY_KEY_CONFLICT",
+            "같은 requestId로 다른 QR이 요청되었습니다.");
 
     // ERROR CODE FIELD
 

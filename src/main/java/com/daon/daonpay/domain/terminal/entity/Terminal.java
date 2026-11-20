@@ -9,7 +9,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -31,7 +31,7 @@ public class Terminal {
     @Column(nullable = false, length = 50)
     private String name;
 
-    /** 단말기가 설치된 사용처(place) ID. 미지정 가능. */
+    /** 단말기가 설치된 사용처(place) ID. 미지정이면 결제 승인이 되지 않는다. */
     @Column(name = "place_id")
     private Long placeId;
 
@@ -43,27 +43,24 @@ public class Terminal {
     @Column(nullable = false, length = 20)
     private TerminalStatus status;
 
+    // 접속 시각은 TerminalRepository.touchLastSeen 쿼리로만 갱신 (상태 덮어쓰기 방지)
     @Column(name = "last_seen_at")
-    private LocalDateTime lastSeenAt;
+    private Instant lastSeenAt;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
-    public Terminal(String terminalCode, String name, Long placeId, String secretHash) {
+    public Terminal(String terminalCode, String name, Long placeId, String secretHash, Instant createdAt) {
         this.terminalCode = terminalCode;
         this.name = name;
         this.placeId = placeId;
         this.secretHash = secretHash;
         this.status = TerminalStatus.ACTIVE;
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = createdAt;
     }
 
     public void changeStatus(TerminalStatus status) {
         this.status = status;
-    }
-
-    public void markSeen() {
-        this.lastSeenAt = LocalDateTime.now();
     }
 
     public boolean isActive() {

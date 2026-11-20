@@ -8,6 +8,8 @@ import com.daon.daonpay.domain.terminal.dto.response.TerminalRegisterResponse;
 import com.daon.daonpay.domain.terminal.dto.response.TerminalResponse;
 import com.daon.daonpay.domain.terminal.service.TerminalService;
 import jakarta.validation.Valid;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class TerminalController {
 
     private final TerminalService terminalService;
+    private final Clock clock;
 
     // 관리자: 단말기 등록 (시크릿은 이 응답에서만 확인 가능)
     @PostMapping
@@ -46,9 +49,10 @@ public class TerminalController {
         return terminalService.changeStatus(id, request.status());
     }
 
-    // 단말기: 부팅/헬스체크 시 인증 (공개 경로, 코드+시크릿으로 검증)
+    //  단말기: 부팅/헬스체크 시 인증 (공개 경로, 코드+시크릿으로 검증)
     @PostMapping("/authenticate")
     public TerminalAuthResponse authenticate(@Valid @RequestBody TerminalAuthRequest request) {
-        return TerminalAuthResponse.from(terminalService.authenticate(request.terminalCode(), request.secret()));
+        return TerminalAuthResponse.from(
+                terminalService.authenticate(request.terminalCode(), request.secret()), Instant.now(clock));
     }
 }

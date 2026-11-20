@@ -10,9 +10,13 @@ import com.daon.daonpay.global.exception.CustomException;
 import com.daon.daonpay.global.exception.ErrorCode;
 import com.daon.daonpay.global.util.TokenHasher;
 import java.security.SecureRandom;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -23,6 +27,7 @@ public class TerminalService {
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final TerminalRepository terminalRepository;
+    private final Clock clock;
 
     @Transactional
     public TerminalRegisterResponse register(TerminalRegisterRequest request) {
@@ -31,7 +36,8 @@ public class TerminalService {
                 generateCode(),
                 request.name(),
                 request.placeId(),
-                TokenHasher.sha256Hex(rawSecret));
+                TokenHasher.sha256Hex(rawSecret),
+                Instant.now(clock));
         terminalRepository.save(terminal);
         return TerminalRegisterResponse.of(terminal, rawSecret);
     }
@@ -41,33 +47,60 @@ public class TerminalService {
         return terminalRepository.findAll().stream().map(TerminalResponse::from).toList();
     }
 
+    // 쓰기 락으로 읽고 변경하므로, 진행 중인 QR 검증이 끝난 뒤에 차단이 반영
     @Transactional
     public TerminalResponse changeStatus(Long id, TerminalStatus status) {
-        Terminal terminal = terminalRepository.findById(id)
+        Terminal terminal = terminalRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new CustomException(ErrorCode.TERMINAL_NOT_FOUND));
         terminal.changeStatus(status);
         return TerminalResponse.from(terminal);
     }
 
     /**
-     * 단말기 코드/시크릿 검증. 성공 시 마지막 접속 시각을 갱신하고 단말기를 반환
-     * 코드가 없거나 시크릿이 다르면 동일하게 TERMINAL_AUTH_FAILED로 응답해 존재 여부를 노출하지 않음
+     * 단말기 인증(+접속 시각 갱신). /authenticate, 검증 결과 재조회처럼
+     * 결제 판정과 같은 트랜잭션으로 묶을 필요가 없는 곳에서 쓴다
      */
 
     @Transactional
     public Terminal authenticate(String terminalCode, String secret) {
+        requireCredentials(terminalCode, secret);
+        Terminal terminal = check(terminalRepository.findByTerminalCode(terminalCode.trim()), secret);
+        terminalRepository.touchLastSeen(terminal.getId(), Instant.now(clock));
+        return terminal;
+    }
+
+    /**
+     * QR 검증 트랜잭션 안에서만 호출한다. 단말기 행에 공유 락을 잡아
+     * 인증 → 판정 → 기록이 끝날 때까지 차단/상태 변경이 끼어들지 못하게 한다
+     * (여기서 접속 시각은 갱신하지 않는다. 공유 락 보유 중 UPDATE는 교착 위험 존재)
+     */
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Terminal authenticateLocked(String terminalCode, String secret) {
+        requireCredentials(terminalCode, secret);
+        return check(terminalRepository.findByTerminalCodeForShare(terminalCode.trim()), secret);
+    }
+
+    @Transactional
+    public void touchLastSeen(Long terminalId) {
+        terminalRepository.touchLastSeen(terminalId, Instant.now(clock));
+    }
+
+    private void requireCredentials(String terminalCode, String secret) {
         if (terminalCode == null || terminalCode.isBlank() || secret == null || secret.isBlank()) {
             throw new CustomException(ErrorCode.TERMINAL_AUTH_FAILED);
         }
-        Terminal terminal = terminalRepository.findByTerminalCode(terminalCode.trim())
-                .orElseThrow(() -> new CustomException(ErrorCode.TERMINAL_AUTH_FAILED));
+    }
+
+    // 코드 없음/시크릿 불일치는 같은 에러로 응답해 존재 여부를 노출하지 않는다
+    private Terminal check(Optional<Terminal> found, String secret) {
+        Terminal terminal = found.orElseThrow(() -> new CustomException(ErrorCode.TERMINAL_AUTH_FAILED));
         if (!TokenHasher.matches(secret, terminal.getSecretHash())) {
             throw new CustomException(ErrorCode.TERMINAL_AUTH_FAILED);
         }
         if (!terminal.isActive()) {
             throw new CustomException(ErrorCode.TERMINAL_NOT_ACTIVE);
         }
-        terminal.markSeen();
         return terminal;
     }
 
