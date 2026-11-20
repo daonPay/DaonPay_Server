@@ -5,3 +5,10 @@ jwt:
 daonpay:
   qr:
     ttl-seconds: 60
+
+spring:
+  jpa:
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
