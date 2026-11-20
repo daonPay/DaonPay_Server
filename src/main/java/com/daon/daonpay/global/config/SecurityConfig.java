@@ -124,6 +124,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, PLACE_PATTERNS)
                         .hasRole(Role.ADMIN.name())
 
+                        .requestMatchers(HttpMethod.POST, "/api/terminals/authenticate").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/qr/verify").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/qr/verifications/*").permitAll()
+                        .requestMatchers("/api/terminals/**").hasRole("ADMIN")
+
                         // 위에서 별도로 허용한 경로를 제외한 모든 API는 인증 필요
                         .anyRequest().authenticated()
                 )
