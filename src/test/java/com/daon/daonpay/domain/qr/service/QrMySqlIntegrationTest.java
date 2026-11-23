@@ -14,6 +14,8 @@ import com.daon.daonpay.domain.terminal.service.TerminalService;
 import com.daon.daonpay.domain.user.entity.Role;
 import com.daon.daonpay.domain.user.entity.User;
 import com.daon.daonpay.domain.user.repository.UserRepository;
+import com.daon.daonpay.global.exception.CustomException;
+import com.daon.daonpay.global.exception.ErrorCode;
 import java.time.Instant;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -27,6 +29,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 @EnabledIfEnvironmentVariable(named = "DAONPAY_QR_TEST_DB", matches = "true")
@@ -66,6 +69,47 @@ class QrMySqlIntegrationTest {
         } finally {
             pool.shutdownNow();
         }
+    }
+
+    @Test
+    void sameRequestIdReturnsOneResultAndRejectsDifferentQr() throws Exception {
+        var place = placeRepository.save(new Place("QR test", PlaceCategory.MERCHANT, "서울", "중구", null, null));
+        var terminal = terminalService.register(new TerminalRegisterRequest("QR test", place.getId()));
+        var user = userRepository.save(User.builder().email(UUID.randomUUID() + "@example.test")
+                .name("QR test").password("unused").role(Role.GENERAL).build());
+        var qr = issueService.issue(user.getId());
+        var start = new CountDownLatch(1);
+        var pool = Executors.newFixedThreadPool(2);
+        try {
+            var first = pool.submit(() -> {
+                start.await();
+                return verifyService.verify(terminal.terminalCode(), terminal.secret(),
+                        new QrVerifyRequest("Retry-ID", qr.qrToken()));
+            });
+            var second = pool.submit(() -> {
+                start.await();
+                return verifyService.verify(terminal.terminalCode(), terminal.secret(),
+                        new QrVerifyRequest("retry-id", qr.qrToken()));
+            });
+            start.countDown();
+            var result = first.get(10, TimeUnit.SECONDS);
+            assertThat(result.result()).isEqualTo(VerifyResult.APPROVED);
+            assertThat(result.requestId()).isEqualTo("retry-id");
+            assertThat(second.get(10, TimeUnit.SECONDS)).isEqualTo(result);
+            assertThat(verifyService.findByRequestId(terminal.terminalCode(), terminal.secret(), "RETRY-ID"))
+                    .isEqualTo(result);
+        } finally {
+            pool.shutdownNow();
+        }
+
+        var differentQr = issueService.issue(user.getId());
+        assertThatThrownBy(() -> verifyService.verify(terminal.terminalCode(), terminal.secret(),
+                new QrVerifyRequest("RETRY-ID", differentQr.qrToken())))
+                .isInstanceOfSatisfying(CustomException.class,
+                        error -> assertThat(error.getErrorCode()).isEqualTo(ErrorCode.IDEMPOTENCY_KEY_CONFLICT));
+        assertThat(verifyService.verify(terminal.terminalCode(), terminal.secret(),
+                new QrVerifyRequest("another-request", differentQr.qrToken())).result())
+                .isEqualTo(VerifyResult.APPROVED);
     }
 
     @Test

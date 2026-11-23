@@ -66,4 +66,22 @@ class QrVerificationTimingTest {
 
         assertThat(service.verify("terminal", "secret", request).result()).isEqualTo(VerifyResult.APPROVED);
     }
+
+    @Test
+    void lastSeenFailureDoesNotHideRetrievedVerification() {
+        var terminals = mock(TerminalService.class);
+        var processor = mock(QrVerifyProcessor.class);
+        var verifications = mock(QrVerificationRepository.class);
+        var service = new QrVerifyService(terminals, processor, verifications);
+        var terminal = mock(Terminal.class);
+        when(terminals.checkCredentials("terminal", "secret")).thenReturn(terminal);
+        when(terminal.getId()).thenReturn(2L);
+        when(verifications.findByTerminalIdAndRequestId(2L, "request")).thenReturn(Optional.of(
+                new QrVerification(2L, "request", TokenHasher.sha256Hex("token"), 1L,
+                        VerifyResult.APPROVED, Instant.EPOCH)));
+        doThrow(new DataAccessResourceFailureException("test failure")).when(terminals).touchLastSeen(2L);
+
+        assertThat(service.findByRequestId("terminal", "secret", "REQUEST").result())
+                .isEqualTo(VerifyResult.APPROVED);
+    }
 }

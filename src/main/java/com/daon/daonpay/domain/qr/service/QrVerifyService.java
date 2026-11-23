@@ -10,9 +10,10 @@ import com.daon.daonpay.global.exception.CustomException;
 import com.daon.daonpay.global.exception.ErrorCode;
 import com.daon.daonpay.global.util.DatabaseConstraints;
 import com.daon.daonpay.global.util.TokenHasher;
+import java.util.Locale;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
-import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.TransactionException;
@@ -28,14 +29,15 @@ public class QrVerifyService {
 
     // 트랜잭션은 processor 안에서만 열림 (단말기 인증 → 판정 → 기록이 한 트랜잭션)
     public QrVerifyResponse verify(String terminalCode, String terminalSecret, QrVerifyRequest request) {
+        QrVerifyRequest normalized = new QrVerifyRequest(normalizeRequestId(request.requestId()), request.qrToken());
         QrVerification verification;
         try {
-            verification = processor.process(terminalCode, terminalSecret, request);
+            verification = processor.process(terminalCode, terminalSecret, normalized);
         } catch (DataIntegrityViolationException e) {
             if (!DatabaseConstraints.matches(e, QrVerification.UK_TERMINAL_REQUEST)) {
                 throw e;
             }
-            verification = findCommitted(terminalCode, terminalSecret, request, e);
+            verification = findCommitted(terminalCode, terminalSecret, normalized, e);
         }
         touchLastSeen(verification.getTerminalId());
         return QrVerifyResponse.from(verification);
@@ -43,10 +45,11 @@ public class QrVerifyService {
 
     // 응답이 끊긴 단말기가 requestId로 결과를 다시 조회
     public QrVerifyResponse findByRequestId(String terminalCode, String terminalSecret, String requestId) {
-        Terminal terminal = terminalService.authenticate(terminalCode, terminalSecret);
+        Terminal terminal = terminalService.checkCredentials(terminalCode, terminalSecret);
         QrVerification verification = verificationRepository
-                .findByTerminalIdAndRequestId(terminal.getId(), requestId)
+                .findByTerminalIdAndRequestId(terminal.getId(), normalizeRequestId(requestId))
                 .orElseThrow(() -> new CustomException(ErrorCode.VERIFICATION_NOT_FOUND));
+        touchLastSeen(terminal.getId());
         return QrVerifyResponse.from(verification);
     }
 
@@ -61,6 +64,10 @@ public class QrVerifyService {
             throw new CustomException(ErrorCode.IDEMPOTENCY_KEY_CONFLICT);
         }
         return existing;
+    }
+
+    private static String normalizeRequestId(String requestId) {
+        return requestId.toLowerCase(Locale.ROOT);
     }
 
     private void touchLastSeen(Long terminalId) {

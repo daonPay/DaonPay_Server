@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -62,7 +63,8 @@ public class QrVerification {
         this.qrTokenHash = qrTokenHash;
         this.qrCodeId = qrCodeId;
         this.result = result;
-        this.verifiedAt = verifiedAt;
+        // 최초 응답과 DB 재조회 응답의 시각 정밀도를 맞춘다.
+        this.verifiedAt = verifiedAt.truncatedTo(ChronoUnit.MICROS);
     }
 
     public boolean isSameQr(String qrTokenHash) {

@@ -4,7 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-//requestId: 단말기가 요청마다 만드는 고유 ID(UUID 권장). 재시도 시 같은 값을 다시 보냄
+// requestId: 단말기가 요청마다 만드는 고유 ID(UUID 권장). 대소문자를 구분하지 않는다.
 
 public record QrVerifyRequest(
         @NotBlank @Pattern(regexp = REQUEST_ID_PATTERN) String requestId,
