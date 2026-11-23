@@ -1,5 +1,6 @@
 package com.daon.daonpay.domain.terminal.service;
 
+import com.daon.daonpay.domain.place.repository.PlaceRepository;
 import com.daon.daonpay.domain.terminal.dto.request.TerminalRegisterRequest;
 import com.daon.daonpay.domain.terminal.dto.response.TerminalRegisterResponse;
 import com.daon.daonpay.domain.terminal.dto.response.TerminalResponse;
@@ -8,6 +9,7 @@ import com.daon.daonpay.domain.terminal.entity.TerminalStatus;
 import com.daon.daonpay.domain.terminal.repository.TerminalRepository;
 import com.daon.daonpay.global.exception.CustomException;
 import com.daon.daonpay.global.exception.ErrorCode;
+import com.daon.daonpay.global.util.DatabaseConstraints;
 import com.daon.daonpay.global.util.TokenHasher;
 import java.security.SecureRandom;
 import java.time.Clock;
@@ -15,7 +17,10 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,9 +33,27 @@ public class TerminalService {
 
     private final TerminalRepository terminalRepository;
     private final Clock clock;
+    private final PlaceRepository placeRepository;
+    private final PlatformTransactionManager transactionManager;
 
-    @Transactional
     public TerminalRegisterResponse register(TerminalRegisterRequest request) {
+        TransactionTemplate transaction = new TransactionTemplate(transactionManager);
+        transaction.setPropagationBehavior(Propagation.REQUIRES_NEW.value());
+        for (int attempt = 1; ; attempt++) {
+            try {
+                return transaction.execute(status -> registerOnce(request));
+            } catch (DataIntegrityViolationException e) {
+                if (attempt >= 3 || !DatabaseConstraints.matches(e, Terminal.UK_CODE)) {
+                    throw e;
+                }
+            }
+        }
+    }
+
+    private TerminalRegisterResponse registerOnce(TerminalRegisterRequest request) {
+        if (request.placeId() != null && !placeRepository.existsById(request.placeId())) {
+            throw new CustomException(ErrorCode.PLACE_NOT_FOUND);
+        }
         String rawSecret = TokenHasher.randomToken(32);
         Terminal terminal = new Terminal(
                 generateCode(),
@@ -63,8 +86,7 @@ public class TerminalService {
 
     @Transactional
     public Terminal authenticate(String terminalCode, String secret) {
-        requireCredentials(terminalCode, secret);
-        Terminal terminal = check(terminalRepository.findByTerminalCode(terminalCode.trim()), secret);
+        Terminal terminal = checkCredentials(terminalCode, secret);
         terminalRepository.touchLastSeen(terminal.getId(), Instant.now(clock));
         return terminal;
     }
@@ -84,6 +106,12 @@ public class TerminalService {
     @Transactional
     public void touchLastSeen(Long terminalId) {
         terminalRepository.touchLastSeen(terminalId, Instant.now(clock));
+    }
+
+    @Transactional(readOnly = true)
+    public Terminal checkCredentials(String terminalCode, String secret) {
+        requireCredentials(terminalCode, secret);
+        return check(terminalRepository.findByTerminalCode(terminalCode.trim()), secret);
     }
 
     private void requireCredentials(String terminalCode, String secret) {

@@ -7,6 +7,7 @@ import com.daon.daonpay.domain.qr.service.QrIssueService;
 import com.daon.daonpay.domain.qr.service.QrVerifyService;
 import com.daon.daonpay.global.jwt.AuthUser;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -51,7 +52,7 @@ public class QrController {
     public QrVerifyResponse findVerification(
             @RequestHeader(value = TERMINAL_CODE, required = false) String terminalCode,
             @RequestHeader(value = TERMINAL_SECRET, required = false) String terminalSecret,
-            @PathVariable String requestId) {
+            @PathVariable @Pattern(regexp = QrVerifyRequest.REQUEST_ID_PATTERN) String requestId) {
         return qrVerifyService.findByRequestId(terminalCode, terminalSecret, requestId);
     }
 }

@@ -21,7 +21,7 @@ public class PlaceAvailabilityChecker {
             return false;
         }
         // Place.isAvailable(): status == OPEN 일 때만 true
-        return placeRepository.findById(placeId)
+        return placeRepository.findByIdForShare(placeId)
                 .map(Place::isAvailable)
                 .orElse(false);
     }

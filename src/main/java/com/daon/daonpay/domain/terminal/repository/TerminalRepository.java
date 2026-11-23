@@ -26,6 +26,6 @@ public interface TerminalRepository extends JpaRepository<Terminal, Long> {
 
     // 접속 시각 컬럼만 갱신한다. 엔티티 전체 UPDATE가 아니라서 상태를 덮어쓰지 않음
     @Modifying(clearAutomatically = true)
-    @Query("update Terminal t set t.lastSeenAt = :now where t.id = :id")
+    @Query("update Terminal t set t.lastSeenAt = :now where t.id = :id and (t.lastSeenAt is null or t.lastSeenAt < :now)")
     int touchLastSeen(@Param("id") Long id, @Param("now") Instant now);
 }
