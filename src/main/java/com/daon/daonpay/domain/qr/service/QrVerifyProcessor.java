@@ -52,11 +52,15 @@ public class QrVerifyProcessor {
             return previous;
         }
 
-        Instant now = Instant.now(clock);
         Optional<QrCode> found = qrCodeRepository.findByTokenHashForUpdate(qrTokenHash);
+        // 잠금 순서: 단말기 → QR → 사용처
+        boolean placeAvailable = found.filter(qr -> qr.getStatus() == QrStatus.ISSUED)
+                .map(qr -> placeAvailabilityChecker.isAvailable(terminal.getPlaceId()))
+                .orElse(false);
+        Instant now = Instant.now(clock);
 
         Long qrCodeId = found.map(QrCode::getId).orElse(null);
-        VerifyResult result = found.map(qr -> decide(terminal, qr, now)).orElse(VerifyResult.QR_NOT_FOUND);
+        VerifyResult result = found.map(qr -> decide(terminal, qr, now, placeAvailable)).orElse(VerifyResult.QR_NOT_FOUND);
 
         // 같은 requestId가 동시에 들어오면 유니크 제약 위반 → QrVerifyService에서 먼저 저장된 결과를 반환
         return verificationRepository.saveAndFlush(
@@ -64,7 +68,7 @@ public class QrVerifyProcessor {
     }
 
     // QR 행 락을 잡은 상태라 읽은 상태가 최신이고, 아래 판정 사유가 실제 사유
-    private VerifyResult decide(Terminal terminal, QrCode qr, Instant now) {
+    private VerifyResult decide(Terminal terminal, QrCode qr, Instant now, boolean placeAvailable) {
         if (qr.getStatus() == QrStatus.USED) {
             return VerifyResult.QR_ALREADY_USED;
         }
@@ -75,7 +79,7 @@ public class QrVerifyProcessor {
             return VerifyResult.QR_EXPIRED;
         }
         // QR을 소비하기 전에 사용처를 확인한다. 불가면 QR은 미사용 상태로 남는다
-        if (!placeAvailabilityChecker.isAvailable(terminal.getPlaceId())) {
+        if (!placeAvailable) {
             return VerifyResult.PLACE_UNAVAILABLE;
         }
         qr.use(now, terminal.getId());

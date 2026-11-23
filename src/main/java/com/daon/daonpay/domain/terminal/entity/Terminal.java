@@ -16,10 +16,12 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "terminals",
-        uniqueConstraints = @UniqueConstraint(name = "uk_terminals_code", columnNames = "terminal_code"))
+        uniqueConstraints = @UniqueConstraint(name = Terminal.UK_CODE, columnNames = "terminal_code"))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Terminal {
+
+    public static final String UK_CODE = "uk_terminals_code";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

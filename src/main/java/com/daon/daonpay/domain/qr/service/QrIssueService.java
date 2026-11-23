@@ -8,6 +8,7 @@ import com.daon.daonpay.domain.user.repository.UserRepository;
 import com.daon.daonpay.global.exception.CustomException;
 import com.daon.daonpay.global.exception.ErrorCode;
 import com.daon.daonpay.global.util.TokenHasher;
+import jakarta.annotation.PostConstruct;
 import java.time.Clock;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,13 @@ public class QrIssueService {
 
     @Value("${daonpay.qr.ttl-seconds:60}")
     private long ttlSeconds;
+
+    @PostConstruct
+    void validateTtl() {
+        if (ttlSeconds <= 0) {
+            throw new IllegalStateException("daonpay.qr.ttl-seconds must be positive");
+        }
+    }
 
     @Transactional
     public QrIssueResponse issue(Long userId) {

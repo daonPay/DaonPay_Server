@@ -3,13 +3,20 @@ package com.daon.daonpay.domain.place.repository;
 import com.daon.daonpay.domain.place.entity.Place;
 import com.daon.daonpay.domain.place.entity.PlaceCategory;
 import com.daon.daonpay.domain.place.entity.PlaceStatus;
+import jakarta.persistence.LockModeType;
+import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface PlaceRepository extends JpaRepository<Place, Long> {
+
+    @Lock(LockModeType.PESSIMISTIC_READ)
+    @Query("select p from Place p where p.id = :id")
+    Optional<Place> findByIdForShare(@Param("id") Long id);
 
     /**
      * 사용처 목록 검색. 조건이 null이면 해당 조건은 무시한다.

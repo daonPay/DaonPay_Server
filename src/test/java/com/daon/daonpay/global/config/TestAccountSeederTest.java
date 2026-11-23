@@ -230,8 +230,13 @@ class TestAccountSeederTest {
         when(repository.existsByEmail("test")).thenReturn(false, true);
 
         // save() 실행 시 이메일 UNIQUE 제약 조건 위반 상황을 재현
-        when(repository.save(any(User.class))).thenThrow(new DataIntegrityViolationException(
-                "Duplicate entry 'test' for key 'users.uk_users_email'"));
+        when(repository.save(any(User.class))).thenAnswer(invocation -> {
+            User user = invocation.getArgument(0);
+            if ("test".equals(user.getEmail())) {
+                throw new DataIntegrityViolationException("Duplicate entry 'test' for key 'users.uk_users_email'");
+            }
+            return user;
+        });
 
         // 중복 계정이 실제로 존재하는 경우 예외가 정상적으로 처리되는지 확인
         assertThatCode(() -> seeder(PASSWORD, false, "local").run(new DefaultApplicationArguments()))
