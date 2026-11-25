@@ -5,10 +5,15 @@ import com.daon.daonpay.domain.place.dto.request.PlaceProductCreateRequest;
 import com.daon.daonpay.domain.place.dto.request.PlaceStatusUpdateRequest;
 import com.daon.daonpay.domain.place.dto.response.PlacePageResponse;
 import com.daon.daonpay.domain.place.dto.response.PlaceResponse;
+import com.daon.daonpay.domain.place.dto.response.WhitelistItemResponse;
+import com.daon.daonpay.domain.place.dto.response.WhitelistPageResponse;
+import com.daon.daonpay.domain.place.dto.response.WhitelistStatusHistoryResponse;
 import com.daon.daonpay.domain.place.entity.Place;
 import com.daon.daonpay.domain.place.entity.PlaceCategory;
 import com.daon.daonpay.domain.place.entity.PlaceStatus;
+import com.daon.daonpay.domain.place.entity.WhitelistStatusHistory;
 import com.daon.daonpay.domain.place.repository.PlaceRepository;
+import com.daon.daonpay.domain.place.repository.WhitelistStatusHistoryRepository;
 import com.daon.daonpay.global.exception.CustomException;
 import com.daon.daonpay.global.exception.ErrorCode;
 import org.hibernate.exception.ConstraintViolationException;
@@ -17,6 +22,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.util.List;
 
 @Service
 @Transactional(readOnly = true)
@@ -29,9 +37,12 @@ public class PlaceService {
     private static final String PRODUCT_UNIQUE_CONSTRAINT = "uk_place_products_place_name";
 
     private final PlaceRepository placeRepository;
+    private final WhitelistStatusHistoryRepository whitelistStatusHistoryRepository;
 
-    public PlaceService(PlaceRepository placeRepository) {
+    public PlaceService(PlaceRepository placeRepository,
+                        WhitelistStatusHistoryRepository whitelistStatusHistoryRepository) {
         this.placeRepository = placeRepository;
+        this.whitelistStatusHistoryRepository = whitelistStatusHistoryRepository;
     }
 
     // 사용처 목록 검색. 공백 조건은 null로 바꿔 검색 조건에서 제외
@@ -68,8 +79,39 @@ public class PlaceService {
     @Transactional
     public PlaceResponse updateStatus(Long placeId, PlaceStatusUpdateRequest req) {
         Place place = find(placeId);
+        PlaceStatus previousStatus = place.getStatus();
         place.changeStatus(req.status());
+        if (previousStatus != req.status()) {
+            whitelistStatusHistoryRepository.save(new WhitelistStatusHistory(
+                    place.getId(), previousStatus, req.status(), Instant.now()));
+        }
         return PlaceResponse.from(place);
+    }
+
+    /** 사용자 지역에서 현재 사용할 수 있는 대피소·사용처 화이트리스트를 조회한다. */
+    public WhitelistPageResponse findAvailableWhitelists(String region, Pageable pageable) {
+        return WhitelistPageResponse.from(placeRepository
+                .search(null, normalize(region), null, null, PlaceStatus.OPEN, pageable)
+                .map(WhitelistItemResponse::from));
+    }
+
+    public List<WhitelistStatusHistoryResponse> findStatusHistory(Long placeId) {
+        find(placeId);
+        return whitelistStatusHistoryRepository.findByPlaceIdOrderByChangedAtDesc(placeId).stream()
+                .map(WhitelistStatusHistoryResponse::from)
+                .toList();
+    }
+
+    /** 관리자 승인된 AI 제안만 이 경로로 실제 장소 상태에 반영한다. */
+    @Transactional
+    public void applyApprovedSuggestion(Long placeId, PlaceStatus suggestedStatus) {
+        Place place = find(placeId);
+        PlaceStatus previousStatus = place.getStatus();
+        place.changeStatus(suggestedStatus);
+        if (previousStatus != suggestedStatus) {
+            whitelistStatusHistoryRepository.save(new WhitelistStatusHistory(
+                    place.getId(), previousStatus, suggestedStatus, Instant.now()));
+        }
     }
 
     /**
