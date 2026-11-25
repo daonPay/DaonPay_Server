@@ -284,6 +284,18 @@ public enum ErrorCode {
             "이미 등록된 상품입니다."
     ),
 
+    WHITELIST_PROPOSAL_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "WHITELIST_PROPOSAL_001",
+            "화이트리스트 변경 제안을 찾을 수 없습니다."
+    ),
+
+    WHITELIST_PROPOSAL_ALREADY_REVIEWED(
+            HttpStatus.CONFLICT,
+            "WHITELIST_PROPOSAL_002",
+            "이미 검토가 끝난 화이트리스트 변경 제안입니다."
+    ),
+
     // user
 
     INVALID_ROLE(
