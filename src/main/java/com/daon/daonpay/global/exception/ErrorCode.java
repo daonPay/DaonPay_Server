@@ -239,6 +239,18 @@ public enum ErrorCode {
             "같은 식별키로 다른 내용의 결제를 요청할 수 없습니다."
     ),
 
+    SUPPORT_FUND_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "SUPPORT_FUND_001",
+            "재난지원금 지갑을 찾을 수 없습니다."
+    ),
+
+    INVALID_SUPPORT_FUND_AMOUNT(
+            HttpStatus.BAD_REQUEST,
+            "SUPPORT_FUND_002",
+            "재난지원금 금액은 0보다 커야 합니다."
+    ),
+
     // place 예외 처리
     // 404 NOT FOUND - 사용처를 찾을 수 없음
 
