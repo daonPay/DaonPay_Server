@@ -299,7 +299,37 @@ public enum ErrorCode {
     LOGIN_FAILED(
             HttpStatus.UNAUTHORIZED,
             "LOGIN_FAILED",
-            "이메일 또는 비밀번호가 올바르지 않습니다.");
+            "이메일 또는 비밀번호가 올바르지 않습니다."),
+
+    USER_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "USER_NOT_FOUND",
+            "사용자를 찾을 수 없습니다."),
+
+    //terminal , qr
+    TERMINAL_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "TERMINAL_NOT_FOUND",
+            "단말기를 찾을 수 없습니다."),
+
+    TERMINAL_AUTH_FAILED(
+            HttpStatus.UNAUTHORIZED,
+            "TERMINAL_AUTH_FAILED",
+            "단말기 인증에 실패했습니다."),
+
+    TERMINAL_NOT_ACTIVE(
+            HttpStatus.FORBIDDEN,
+            "TERMINAL_NOT_ACTIVE",
+            "사용할 수 없는 단말기입니다."),
+
+    VERIFICATION_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "VERIFICATION_NOT_FOUND",
+            "검증 내역을 찾을 수 없습니다."),
+
+    IDEMPOTENCY_KEY_CONFLICT(HttpStatus.CONFLICT,
+            "IDEMPOTENCY_KEY_CONFLICT",
+            "같은 requestId로 다른 QR이 요청되었습니다.");
 
     // ERROR CODE FIELD
 
