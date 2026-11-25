@@ -102,6 +102,18 @@ public class PlaceService {
                 .toList();
     }
 
+    /** 관리자 승인된 AI 제안만 이 경로로 실제 장소 상태에 반영한다. */
+    @Transactional
+    public void applyApprovedSuggestion(Long placeId, PlaceStatus suggestedStatus) {
+        Place place = find(placeId);
+        PlaceStatus previousStatus = place.getStatus();
+        place.changeStatus(suggestedStatus);
+        if (previousStatus != suggestedStatus) {
+            whitelistStatusHistoryRepository.save(new WhitelistStatusHistory(
+                    place.getId(), previousStatus, suggestedStatus, Instant.now()));
+        }
+    }
+
     /**
      * 사용처에 상품 추가.
      * - 순차 중복 요청: hasProduct 검사에서 걸러낼 것
